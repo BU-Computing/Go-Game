@@ -1,0 +1,274 @@
+#Added some commenting
+#still needs Ko and win conditions
+#cannot suicide anymore though
+#messy code under mouse_processing :p
+#editing with sublime only now :D
+
+
+import pygame
+from pygame.locals import *
+
+
+#Establishes which player is playing
+def player_move(turn):
+	
+
+	if turn % 2 == 0:
+		player = 1
+	else:
+		player = 2
+	
+	return player
+
+#Creates the board storage,with piece information and position # y is vertical (index[1]) x is horizontal (index[2])	
+# y is vertical (index[1]) x is horizontal (index[2])
+def make_board():
+	board = [[[0, x, y] for y in range(0,19)]for x in range(0,19)]
+	return board
+
+#Prints board in terminal
+def print_board(board):
+	for row in board:
+		print row
+
+#Manages search algorithm and controls piece capture
+def gameplay_logic(board, player):
+	
+	if player == 1:
+		enemy_player = 2
+	else:
+		enemy_player = 1
+		
+	for row in board:
+		for index in row:
+			temp_list = []
+			if index[0] == enemy_player:
+				temp_list.append([index[0], index[1], index[2]])
+				search_all(enemy_player, board, index[1], index[2], temp_list)
+				perimeter_ammend(board, enemy_player, temp_list)
+			else:
+				pass
+
+#Combines all directional search functions to create the cycle
+def search_all(enemy_player, board, vertical_index, horizontal_index, temp_list):
+	found = True
+	while found:
+		found = False
+		for item in temp_list:
+			found_right_piece = search_right(board, item[1], item[2] )
+			if found_right_piece and found_right_piece not in temp_list and found_right_piece[0] == enemy_player:
+				temp_list.append([found_right_piece[0], found_right_piece[1], found_right_piece[2]])
+				found = True
+		for item in temp_list:
+			found_down_piece = search_down(board, item[1], item[2] )
+			if found_down_piece and found_down_piece not in temp_list and found_down_piece[0] == enemy_player:
+				temp_list.append([found_down_piece[0], found_down_piece[1], found_down_piece[2]])
+				found = True
+		for item in temp_list:
+			found_left_piece = search_left(board, item[1], item[2] )
+			if found_left_piece and found_left_piece not in temp_list and found_left_piece[0] == enemy_player:
+				temp_list.append([found_left_piece[0], found_left_piece[1], found_left_piece[2]])
+				found = True
+		for item in temp_list:
+			found_up_piece = search_up(board, item[1], item[2] )
+			if found_up_piece and found_up_piece not in temp_list and found_up_piece[0] == enemy_player:
+				temp_list.append([found_up_piece[0], found_up_piece[1], found_up_piece[2]])
+				found = True	
+
+def search_right(board, vertical_index, horizontal_index):
+	if board[vertical_index][horizontal_index][2] == 18:
+		found_piece = [99,99,99]
+	else:
+		found_piece = board[vertical_index][horizontal_index+1]
+	return found_piece 
+
+def search_down(board, vertical_index, horizontal_index):
+	if board[vertical_index][horizontal_index][1] == 18:
+		found_piece = [99, 99, 99]
+	else:
+		found_piece = board[vertical_index+1][horizontal_index]
+	return found_piece
+
+def search_left(board, vertical_index, horizontal_index):
+	if board[vertical_index][horizontal_index][2] == 0:
+		found_piece = [99, 99, 99]
+	else:
+		found_piece = board[vertical_index][horizontal_index-1]
+	return found_piece
+
+def search_up(board, vertical_index, horizontal_index):
+	if board[vertical_index][horizontal_index][1] == 0:
+		found_piece = [99, 99, 99]
+	else:
+		found_piece = board[vertical_index-1][horizontal_index]
+	return found_piece
+
+#Capture function
+def perimeter_ammend(board, enemy_player, temp_list):
+	for i in range(0, len(temp_list)):
+		temp_list.append(search_right(board, temp_list[i][1], temp_list[i][2]))
+		temp_list.append(search_down(board, temp_list[i][1], temp_list[i][2]))
+		temp_list.append(search_left(board, temp_list[i][1], temp_list[i][2]))
+		temp_list.append(search_up(board, temp_list[i][1], temp_list[i][2]))
+	liberty = False	
+	for i in range(0, len(temp_list)):
+		print temp_list
+		if temp_list[i][0] == 0:
+			liberty = True
+		else:
+			pass
+	if not liberty:
+		for i in range(0, len(temp_list)):
+			if temp_list[i][0] == enemy_player:
+				board[temp_list[i][1]][temp_list[i][2]][0] = 0
+			else:
+				pass
+
+#Visual interface prompt informing of player turn		
+def player_print(player, screen):
+	
+	myfont = pygame.font.SysFont("monospace", 25)
+	if player == 1:
+		playcolour = "Black"
+	else:
+		playcolour = "White"
+	player_update = myfont.render("It is {}'s go!".format(playcolour), 1, (0,0,0))
+	screen.blit(player_update, (50, 967))
+
+#Creates a list of exisitng pieces on the current board for quick reference by the program			
+def get_grid(board):
+    living_pieces = []
+    for row in board:
+	for i in row:
+	    if i[0] != 0:
+		living_pieces.append((i[0], i[1], i[2]))
+	    else:
+	    	pass
+    #print "153 {}".format(living_pieces)
+    return living_pieces
+
+#Logic for establishing mouse position and returning it, playing pieces and contains logic to halt turn if trying to play on a taken place, suicide moves or breaking Ko
+def mouse_processing(board, player, living_pieces, screen):
+	board_position_x = "no click"
+	board_position_y = "no click"
+	for event in pygame.event.get():
+		if event.type == pygame.MOUSEBUTTONUP:
+			mouse_position = pygame.mouse.get_pos()
+			board_position_x = mouse_position[0] / 50
+			board_position_y = mouse_position[1] / 50
+			print "\nHORIZONTAL" + str(board_position_x)
+			print "VERTICAL" + str(board_position_y)
+			#Stops playing on occupied spaces
+			for piece in living_pieces:
+				if int(board_position_x) == int(piece[2]) and int(board_position_y) == int(piece[1]):
+					if player == 1:
+						playcolour = "Black"
+					else:
+						playcolour = "White"
+					myfont = pygame.font.SysFont("monospace", 15)
+					taken_space_warning = myfont.render("That place is taken {}. Please pick another place".format(playcolour), 1, (0,0,0))
+					screen.blit(taken_space_warning, (400, 967))
+			
+					board_position_x = "no click"
+					board_position_y = "no click"
+					pass
+				else:
+					pass
+			#Stops suicide moves
+			#program considers the move, creates temp group using search all, sees if its full, if it is give warning of a suicide move and asks user to take their go again
+			if board_position_x == "no click":
+				pass
+			else:
+				temp_list = []
+				temp_list.append((player, board_position_y, board_position_x))
+				search_all(player, board, board_position_y, board_position_x, temp_list)
+				for i in range(0, len(temp_list)):
+					temp_list.append(search_right(board, temp_list[i][1], temp_list[i][2]))
+					temp_list.append(search_down(board, temp_list[i][1], temp_list[i][2]))
+					temp_list.append(search_left(board, temp_list[i][1], temp_list[i][2]))
+					temp_list.append(search_up(board, temp_list[i][1], temp_list[i][2]))
+				liberty = False	
+				for i in range(0, len(temp_list)):
+					print temp_list
+					if temp_list[i][0] == 0:
+						liberty = True
+					else:
+						pass
+				if not liberty:
+					if player == 1:
+						playcolour = "Black"
+					else:
+						playcolour = "White"
+					myfont = pygame.font.SysFont("monospace", 15)
+					suicide_warning = myfont.render("Do you want to die {}?. Please pick another place".format(playcolour), 1, (0,0,0))
+					screen.blit(suicide_warning, (400, 967))
+					board_position_x = "no click"
+					board_position_y = "no click"
+					temp_list = []
+			#Stops breaking Ko
+			break
+
+
+		else:
+			pass
+	return board_position_x, board_position_y    
+
+def space_occupied():
+	pass
+
+#scans current terminal board state and translates it to the GUI board
+def circle_generate(screen, position_x, position_y, player, board):
+	for row in board:
+		for i in row:
+			if i[0] == 2:
+				colour = (255,255,255)
+			else:
+				colour = (0,0,0,)
+			if i[0] == 1 or i[0] == 2:
+				pygame.draw.circle(screen, colour, (25 + i[2] * 50, 25 + i[1] * 50), 25, 0) 
+			else:
+				pass
+	
+    
+    
+    #if player == 1:
+    #    colour = (0,0,0)
+    #else:
+    #	colour = (255,255,255)
+    #pygame.draw.circle(screen, colour, (25 + position_x * 50, 25 + position_y * 50), 25, 0) 
+
+#Will establish the game window, main control flow for the game 
+def main():
+	pygame.init()
+	screen = pygame.display.set_mode((950,1000))
+	go_graph_board = pygame.image.load('Blank_Go_board.png')
+	stop_play = False
+	board = make_board()
+	turn = 0
+	screen.blit(go_graph_board, (0, 0))
+	
+	while not stop_play:
+		pygame.display.update()
+		player = player_move(turn)
+		player_print(player, screen)
+		living_pieces = get_grid(board) 
+		position_x, position_y = mouse_processing(board, player, living_pieces, screen)
+		if position_x == "no click":
+			continue
+		else:
+			screen.blit(go_graph_board, (0, 0))
+			board[position_y][position_x][0] = player
+			pygame.display.update()
+			gameplay_logic(board, player)
+			circle_generate(screen, position_x, position_y, player, board)
+			#print_board(board)
+			turn += 1
+			pygame.draw.rect(screen, (255, 255, 255),(0, 950, 950, 50))
+	pygame.display.update()
+
+main()
+
+
+
+
+
