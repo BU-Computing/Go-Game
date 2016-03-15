@@ -2,6 +2,7 @@
 A challenge set by my programming lecturer to create a version of the board game, Go, and implement a graphical front-end. No comments yet.
 
 File to play is currently: Go(Playable 1.1)
+Pygame is required to run this code.
 
 Created by Flynn Acworth and Felix Carvisiglia
 
